@@ -49,6 +49,10 @@ export interface RouletteConfig {
   title: string;
   /** Short line shown under the title. */
   subtitle: string;
+  /** Active theme: "standaard", "kerst", "btw-dagen", "black-friday", "zomer" or "halloween" (see themes.ts). */
+  theme: string;
+  /** Own logo for this config: image in `public/` (e.g. "logos/mijn-logo.png") or a URL. null = the theme's logo. */
+  logo: string | null;
   /** All other texts on the page. */
   texts: {
     spinButton: string;
@@ -103,11 +107,6 @@ export interface RouletteConfig {
     /** Fanfare when the winner is revealed. */
     win: boolean;
   };
-  /**
-   * Hidden admin mode. Open it by clicking the logo 5 times quickly, pressing Ctrl+Shift+A,
-   * or adding #admin to the URL. Changes made there only apply in that browser tab until the
-   * page is refreshed; use "Kopieer config-code" in the admin to make them permanent here.
-   */
   /** Mascot head with a white glow + credit in the bottom-left corner. */
   mascot: {
     enabled: boolean;
@@ -115,10 +114,14 @@ export interface RouletteConfig {
     image: string;
     credit: string;
   };
+  /**
+   * Hidden admin mode. Open it by clicking the logo 5 times quickly, pressing Ctrl+Shift+A,
+   * or adding #admin to the URL. Changes made there only apply in that browser tab until the
+   * page is refreshed; use "Kopieer config-code" in the admin to make them permanent here,
+   * or keep the code somewhere and paste it back with "Importeer config-code".
+   */
   admin: {
     enabled: boolean;
-    /** PIN asked before opening the admin. Empty string = no PIN. Note: visible in the site's code. */
-    pin: string;
   };
   items: RouletteItem[];
 }
@@ -126,6 +129,8 @@ export interface RouletteConfig {
 export const rouletteConfig: RouletteConfig = {
   title: "Store Grand Prix",
   subtitle: "Draai aan het rad en race naar de trofee!",
+  theme: "standaard",
+  logo: null,
 
   texts: {
     spinButton: "DRAAI!",
@@ -170,7 +175,6 @@ export const rouletteConfig: RouletteConfig = {
 
   admin: {
     enabled: true,
-    pin: "1234",
   },
 
   // ---------------------------------------------------------------------------

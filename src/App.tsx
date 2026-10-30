@@ -2,7 +2,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { MotionConfig, motion, useReducedMotion } from "framer-motion";
 import confetti from "canvas-confetti";
 import { rouletteConfig as defaultConfig, type RouletteConfig } from "./config/rouletteConfig";
-import { buildSegments, getEnabledItems, validateConfig, type Segment } from "./lib/wheel";
+import { getTheme } from "./config/themes";
+import { assetUrl, buildSegments, getEnabledItems, validateConfig, type Segment } from "./lib/wheel";
 import { playJackpot, playWin } from "./lib/sound";
 import { useRouletteSpin } from "./hooks/useRouletteSpin";
 import { Background } from "./components/Background";
@@ -18,11 +19,9 @@ import logo from "./assets/store-grand-prix-logo.webp";
 const cornerButton =
   "flex h-12 w-12 items-center justify-center rounded-full border-2 border-white/70 bg-black/40 text-2xl text-white backdrop-blur outline-none focus-visible:ring-4 focus-visible:ring-mm-yellow";
 
-const CONFETTI_COLORS =["#E30613", "#0A7CFF", "#1FB24A", "#FFC81E", "#FFFFFF"];
-
-function celebrate() {
+function celebrate(colors: string[]) {
   const end = Date.now() + 2200;
-  const base = { colors: CONFETTI_COLORS, disableForReducedMotion: true, zIndex: 60 };
+  const base = { colors, disableForReducedMotion: true, zIndex: 60 };
   confetti({ ...base, particleCount: 160, spread: 100, startVelocity: 55, origin: { x: 0.5, y: 0.55 } });
   const frame = () => {
     confetti({ ...base, particleCount: 4, angle: 60, spread: 60, origin: { x: 0, y: 0.75 } });
@@ -67,8 +66,30 @@ export default function App() {
   const [result, setResult] = useState<Segment | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [adminOpen, setAdminOpen] = useState(false);
-  const [adminUnlocked, setAdminUnlocked] = useState(!defaultConfig.admin.pin);
   const [jackpotFlash, setJackpotFlash] = useState(false);
+  const theme = getTheme(config.theme);
+
+  // Logo: the config's own logo, else the theme's logo, else the standard one (also if an image fails to load).
+  const customLogo = config.logo || theme.logo;
+  const [failedLogo, setFailedLogo] = useState<string | null>(null);
+  const logoSrc = customLogo && customLogo !== failedLogo ? assetUrl(customLogo) : logo;
+  const usesStandardLogo = logoSrc === logo;
+
+  // Push the theme colors into the CSS variables used by the button, glow and page background.
+  useEffect(() => {
+    const vars: Record<string, string> = {
+      "--bg-1": theme.background[0],
+      "--bg-2": theme.background[1],
+      "--bg-3": theme.background[2],
+      "--btn-1": theme.button[0],
+      "--btn-2": theme.button[1],
+      "--btn-3": theme.button[2],
+      "--btn-text": theme.buttonText,
+      "--glow": theme.glow,
+    };
+    for (const [name, value] of Object.entries(vars)) document.documentElement.style.setProperty(name, value);
+    document.querySelector('meta[name="theme-color"]')?.setAttribute("content", theme.background[1]);
+  }, [theme]);
   const revealTimer = useRef<number>();
   const flashTimer = useRef<number>();
   const logoClicks = useRef<number[]>([]);
@@ -105,12 +126,12 @@ export default function App() {
         revealTimer.current = window.setTimeout(() => runJackpotCelebration(() => setModalOpen(true)), 250);
         return;
       }
-      if (config.confetti) celebrate();
+      if (config.confetti) celebrate(theme.confetti);
       if (config.sound.enabled && soundOn && config.sound.win) playWin(config.sound.volume);
       // Let the pointer and highlighted segment be seen for a moment before the pop-up.
       revealTimer.current = window.setTimeout(() => setModalOpen(true), reducedMotion ? 150 : 700);
     },
-    [config, soundOn, reducedMotion, runJackpotCelebration],
+    [config, theme, soundOn, reducedMotion, runJackpotCelebration],
   );
 
   const { rotation, pointerKick, spinning, spin } = useRouletteSpin({
@@ -209,7 +230,7 @@ export default function App() {
 
   return (
     <MotionConfig reducedMotion="user">
-      <Background />
+      <Background theme={theme} />
 
       <div
         className="fixed right-3 top-3 z-40 flex gap-2 sm:right-5 sm:top-5"
@@ -251,16 +272,33 @@ export default function App() {
 
       <div className="flex min-h-dvh flex-col items-center px-4 pb-6 pt-14 sm:px-6 sm:pt-6">
         <header className="flex w-full flex-col items-center text-center">
-          <motion.img
-            src={logo}
-            alt={`MediaMarkt ${config.title}`}
-            className="logo-float w-[min(94vw,540px,max(300px,(100dvh-280px)*0.9))] drop-shadow-[0_14px_24px_rgba(0,0,0,0.55)]"
-            initial={{ opacity: 0, y: -60, scale: 0.8 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            transition={{ type: "spring", stiffness: 120, damping: 14 }}
-            draggable={false}
-            onClick={onLogoClick}
-          />
+          <div className="relative">
+            <motion.img
+              key={logoSrc}
+              src={logoSrc}
+              alt={`MediaMarkt ${config.title}`}
+              className="logo-float max-h-[clamp(110px,26dvh,200px)] w-[min(94vw,540px,max(300px,(100dvh-280px)*0.9))] object-contain drop-shadow-[0_14px_24px_rgba(0,0,0,0.55)]"
+              initial={{ opacity: 0, y: -60, scale: 0.8 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              transition={{ type: "spring", stiffness: 120, damping: 14 }}
+              draggable={false}
+              onClick={onLogoClick}
+              onError={() => setFailedLogo(customLogo)}
+            />
+            {/* Theme decoration on the standard logo, e.g. a Santa or a pumpkin */}
+            {usesStandardLogo && theme.logoDecoration && (
+              <motion.span
+                key={theme.id}
+                className="pointer-events-none absolute left-[3%] top-[2%] text-[clamp(2rem,6vw,3.5rem)] drop-shadow-[0_6px_8px_rgba(0,0,0,0.45)]"
+                initial={{ scale: 0, rotate: -40 }}
+                animate={{ scale: 1, rotate: -14 }}
+                transition={{ type: "spring", stiffness: 260, damping: 12, delay: 0.5 }}
+                aria-hidden
+              >
+                {theme.logoDecoration}
+              </motion.span>
+            )}
+          </div>
           <h1 className="sr-only">{config.title}</h1>
           {config.subtitle && (
             <motion.p
@@ -355,8 +393,6 @@ export default function App() {
           config={config}
           defaultConfig={defaultConfig}
           isModified={config !== defaultConfig}
-          unlocked={adminUnlocked}
-          onUnlock={() => setAdminUnlocked(true)}
           onApply={applyAdminConfig}
           onClose={closeAdmin}
         />

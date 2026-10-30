@@ -15,7 +15,7 @@ export function SpinButton({ label, ariaLabel, spinningLabel, hint, spinning, on
       type="button"
       onClick={onSpin}
       disabled={spinning}
-      className="spin-button group relative isolate rounded-full px-12 py-4 font-display text-4xl uppercase tracking-wide text-white outline-none focus-visible:ring-4 focus-visible:ring-mm-yellow focus-visible:ring-offset-4 focus-visible:ring-offset-mm-red-dark disabled:cursor-not-allowed sm:px-16 sm:py-5 sm:text-5xl"
+      className="spin-button group relative isolate rounded-full px-12 py-4 font-display text-4xl uppercase tracking-wide text-[color:var(--btn-text)] outline-none focus-visible:ring-4 focus-visible:ring-mm-yellow focus-visible:ring-offset-4 focus-visible:ring-offset-mm-red-dark disabled:cursor-not-allowed sm:px-16 sm:py-5 sm:text-5xl"
       whileHover={spinning ? undefined : { scale: 1.06, y: -2 }}
       whileTap={spinning ? undefined : { scale: 0.94, y: 3 }}
       animate={spinning ? { scale: 0.96, opacity: 0.75 } : { scale: [1, 1.04, 1], opacity: 1 }}

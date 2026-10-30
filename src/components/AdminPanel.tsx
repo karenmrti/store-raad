@@ -1,14 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import type { RouletteConfig, RouletteItem } from "../config/rouletteConfig";
+import { themes } from "../config/themes";
+import { importConfig, toConfigCode } from "../lib/configCode";
 
 interface AdminPanelProps {
   open: boolean;
   config: RouletteConfig;
   defaultConfig: RouletteConfig;
   isModified: boolean;
-  unlocked: boolean;
-  onUnlock: () => void;
   onApply: (config: RouletteConfig) => void;
   onClose: () => void;
   onPreviewJackpot: () => void;
@@ -49,12 +49,6 @@ function toPercentDraft(config: RouletteConfig): RouletteConfig {
   return draft;
 }
 
-/** Turns a config into TypeScript that can replace the object in src/config/rouletteConfig.ts. */
-function toConfigCode(config: RouletteConfig): string {
-  const body = JSON.stringify(config, null, 2).replace(/^(\s*)"([A-Za-z_$][\w$]*)":/gm, "$1$2:");
-  return `export const rouletteConfig: RouletteConfig = ${body};\n`;
-}
-
 const inputClass =
   "w-full rounded-xl border-2 border-white/15 bg-black/40 px-3 py-2 font-body text-sm font-bold text-white placeholder:text-white/30 outline-none focus:border-mm-yellow";
 const labelClass = "mb-1 block font-body text-xs font-black uppercase tracking-wider text-white/60";
@@ -77,56 +71,6 @@ function Toggle({ checked, onChange, label }: { checked: boolean; onChange: (v: 
       </button>
       {label}
     </label>
-  );
-}
-
-function PinGate({ pin, onUnlock, onClose }: { pin: string; onUnlock: () => void; onClose: () => void }) {
-  const [value, setValue] = useState("");
-  const [wrong, setWrong] = useState(false);
-  const inputRef = useRef<HTMLInputElement>(null);
-  useEffect(() => inputRef.current?.focus(), []);
-
-  return (
-    <form
-      className="mx-auto mt-[15vh] w-full max-w-xs rounded-3xl border-2 border-white/20 bg-[#1E0A0D] p-6 text-center shadow-2xl"
-      onSubmit={(e) => {
-        e.preventDefault();
-        if (value === pin) onUnlock();
-        else {
-          setWrong(true);
-          setValue("");
-        }
-      }}
-      onClick={(e) => e.stopPropagation()}
-    >
-      <p className="font-display text-2xl text-mm-yellow">Admin</p>
-      <p className="mt-1 font-body text-sm font-bold text-white/70">Voer de pincode in</p>
-      <motion.input
-        ref={inputRef}
-        type="password"
-        inputMode="numeric"
-        autoComplete="off"
-        value={value}
-        onChange={(e) => {
-          setValue(e.target.value);
-          setWrong(false);
-        }}
-        className={`${inputClass} mt-4 text-center text-2xl tracking-[0.5em]`}
-        animate={wrong ? { x: [0, -10, 10, -6, 6, 0] } : { x: 0 }}
-        transition={{ duration: 0.35 }}
-        aria-label="Pincode"
-        aria-invalid={wrong}
-      />
-      {wrong && <p className="mt-2 font-body text-sm font-bold text-[#FF8A8A]">Onjuiste pincode</p>}
-      <div className="mt-5 flex gap-2">
-        <button type="button" onClick={onClose} className="flex-1 rounded-full bg-white/10 py-2 font-display text-lg text-white hover:bg-white/20">
-          Annuleren
-        </button>
-        <button type="submit" className="flex-1 rounded-full bg-mm-red py-2 font-display text-lg text-white hover:brightness-110">
-          Open
-        </button>
-      </div>
-    </form>
   );
 }
 
@@ -255,8 +199,6 @@ export function AdminPanel({
   config,
   defaultConfig,
   isModified,
-  unlocked,
-  onUnlock,
   onApply,
   onClose,
   onPreviewJackpot,
@@ -265,6 +207,10 @@ export function AdminPanel({
   const [error, setError] = useState<string | null>(null);
   const [code, setCode] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
+  const [importText, setImportText] = useState("");
+  const [importMessage, setImportMessage] = useState<{ ok: boolean; text: string } | null>(null);
+  const importRef = useRef<HTMLTextAreaElement>(null);
 
   // Start from the live config every time the panel opens.
   useEffect(() => {
@@ -272,6 +218,9 @@ export function AdminPanel({
     setDraft(toPercentDraft(config));
     setError(null);
     setCode(null);
+    setImportOpen(false);
+    setImportText("");
+    setImportMessage(null);
   }, [open, config]);
 
   useEffect(() => {
@@ -361,6 +310,34 @@ export function AdminPanel({
     }
   };
 
+  const openImport = () => {
+    setImportOpen(true);
+    setImportMessage(null);
+    window.setTimeout(() => {
+      importRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+      importRef.current?.focus();
+    }, 50);
+  };
+
+  const loadImport = () => {
+    try {
+      const imported = importConfig(importText, defaultConfig);
+      setDraft(toPercentDraft(imported));
+      setError(null);
+      setImportMessage({
+        ok: true,
+        text: `Geladen: ${imported.items.length} items, thema "${themes.find((t) => t.id === imported.theme)?.name ?? imported.theme}". Klik op Toepassen om het te gebruiken.`,
+      });
+    } catch (e) {
+      setImportMessage({ ok: false, text: e instanceof Error ? e.message : "De code kon niet gelezen worden." });
+    }
+  };
+
+  const chooseTheme = (id: string) => {
+    const theme = themes.find((t) => t.id === id);
+    if (theme) update({ theme: id, subtitle: theme.subtitle });
+  };
+
   const chanceOf = (item: RouletteItem) => (activeTotal > 0 && item.enabled ? (item.weight / activeTotal) * 100 : 0);
 
   return (
@@ -376,177 +353,267 @@ export function AdminPanel({
           aria-modal="true"
           aria-label="Admin-instellingen"
         >
-          {!unlocked ? (
-            <PinGate pin={defaultConfig.admin.pin} onUnlock={onUnlock} onClose={onClose} />
-          ) : (
-            <motion.div
-              className="ml-auto flex min-h-full w-full max-w-3xl flex-col bg-gradient-to-b from-[#2A0A0E] to-[#14070A] shadow-[-20px_0_60px_rgba(0,0,0,0.6)]"
-              initial={{ x: "100%" }}
-              animate={{ x: 0 }}
-              exit={{ x: "100%" }}
-              transition={{ type: "spring", stiffness: 260, damping: 30 }}
-              onClick={(e) => e.stopPropagation()}
-            >
-              <header className="sticky top-0 z-10 flex items-center justify-between gap-3 border-b-2 border-white/10 bg-[#2A0A0E]/95 px-4 py-3 backdrop-blur sm:px-6" style={{ paddingTop: "max(0.75rem, env(safe-area-inset-top, 0px))" }}>
-                <div className="flex items-center gap-3">
-                  <span className="bg-checker-strip inline-block h-6 w-8 rounded" aria-hidden />
-                  <div>
-                    <h2 className="font-display text-2xl leading-none text-mm-yellow">Admin</h2>
-                    <p className="font-body text-xs font-bold text-white/60">
-                      {isModified ? "Lokale wijzigingen actief in dit tabblad" : "Standaardinstellingen uit de config"}
-                    </p>
+          <motion.div
+            className="ml-auto flex min-h-full w-full max-w-3xl flex-col bg-gradient-to-b from-[#2A0A0E] to-[#14070A] shadow-[-20px_0_60px_rgba(0,0,0,0.6)]"
+            initial={{ x: "100%" }}
+            animate={{ x: 0 }}
+            exit={{ x: "100%" }}
+            transition={{ type: "spring", stiffness: 260, damping: 30 }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <header className="sticky top-0 z-10 flex items-center justify-between gap-3 border-b-2 border-white/10 bg-[#2A0A0E]/95 px-4 py-3 backdrop-blur sm:px-6" style={{ paddingTop: "max(0.75rem, env(safe-area-inset-top, 0px))" }}>
+              <div className="flex items-center gap-3">
+                <span className="bg-checker-strip inline-block h-6 w-8 rounded" aria-hidden />
+                <div>
+                  <h2 className="font-display text-2xl leading-none text-mm-yellow">Admin</h2>
+                  <p className="font-body text-xs font-bold text-white/60">
+                    {isModified ? "Lokale wijzigingen actief in dit tabblad" : "Standaardinstellingen uit de config"}
+                  </p>
+                </div>
+              </div>
+              <button type="button" onClick={onClose} className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-xl text-white hover:bg-white/20" aria-label="Sluiten">
+                ✕
+              </button>
+            </header>
+
+            <div className="flex-1 space-y-6 px-4 py-5 sm:px-6">
+              <section>
+                <h3 className="mb-3 font-display text-xl text-white">Thema</h3>
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                  {themes.map((theme) => {
+                    const active = draft.theme === theme.id;
+                    return (
+                      <button
+                        key={theme.id}
+                        type="button"
+                        onClick={() => chooseTheme(theme.id)}
+                        aria-pressed={active}
+                        className={`relative overflow-hidden rounded-2xl border-2 p-3 text-left transition ${
+                          active ? "border-mm-yellow ring-2 ring-mm-yellow/60" : "border-white/15 hover:border-white/40"
+                        }`}
+                        style={{ background: `linear-gradient(135deg, ${theme.background[0]}, ${theme.background[2]})` }}
+                      >
+                        <span className="flex items-center justify-between gap-2">
+                          <span className="font-display text-lg leading-none text-white drop-shadow">{theme.name}</span>
+                          <span className="text-xl" aria-hidden>
+                            {theme.logoDecoration ?? "🏁"}
+                          </span>
+                        </span>
+                        <span className="mt-2 flex items-center gap-1.5" aria-hidden>
+                          <span className="h-4 w-8 rounded-full border border-white/60" style={{ background: theme.button[1] }} />
+                          <span className="h-4 w-4 rounded-full border border-white/60" style={{ background: theme.glow }} />
+                          <span className="ml-auto font-body text-xs font-black text-white/80">{theme.particles.slice(0, 3).join(" ")}</span>
+                        </span>
+                        {active && (
+                          <span className="absolute right-2 top-2 hidden rounded-full bg-mm-yellow px-1.5 font-body text-[10px] font-black text-mm-ink sm:inline">
+                            ✓
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+                <label className="mt-3 block">
+                  <span className={labelClass}>Eigen logo (optioneel)</span>
+                  <input
+                    className={inputClass}
+                    value={draft.logo ?? ""}
+                    onChange={(e) => update({ logo: e.target.value.trim() || null })}
+                    placeholder="Leeg = logo van het thema · bv. logos/kerst.png of https://…"
+                  />
+                </label>
+              </section>
+
+              <section>
+                <h3 className="mb-3 font-display text-xl text-white">Algemeen</h3>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <label className="sm:col-span-2">
+                    <span className={labelClass}>Ondertitel</span>
+                    <input className={inputClass} value={draft.subtitle} onChange={(e) => update({ subtitle: e.target.value })} />
+                  </label>
+                  <label>
+                    <span className={labelClass}>Draaiduur (seconden)</span>
+                    <input
+                      type="number"
+                      min={1}
+                      max={30}
+                      step={0.5}
+                      className={inputClass}
+                      value={draft.spinDuration / 1000}
+                      onChange={(e) => update({ spinDuration: Math.round((Number(e.target.value) || 0) * 1000) })}
+                    />
+                  </label>
+                  <label>
+                    <span className={labelClass}>Grootte van de vakken</span>
+                    <select
+                      className={inputClass}
+                      value={draft.segmentSizing}
+                      onChange={(e) => update({ segmentSizing: e.target.value as RouletteConfig["segmentSizing"] })}
+                    >
+                      <option value="equal">Allemaal even groot</option>
+                      <option value="weighted">Naar verhouding van de kans</option>
+                    </select>
+                  </label>
+                </div>
+                <div className="mt-4 flex flex-wrap gap-x-6 gap-y-3">
+                  <Toggle checked={draft.showPrizeList} onChange={(v) => update({ showPrizeList: v })} label="Prijzenlijst tonen" />
+                  <Toggle checked={draft.showProbabilities} onChange={(v) => update({ showProbabilities: v })} label="Percentages tonen" />
+                  <Toggle checked={draft.confetti} onChange={(v) => update({ confetti: v })} label="Confetti" />
+                  <Toggle checked={draft.sound.enabled} onChange={(v) => update({ sound: { ...draft.sound, enabled: v } })} label="Geluid" />
+                </div>
+              </section>
+
+              <section>
+                <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                  <h3 className="font-display text-xl text-white">Items op het rad</h3>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span
+                      className={`rounded-full px-3 py-1 font-body text-sm font-black tabular-nums ${
+                        totalIs100 ? "bg-mm-green/25 text-[#7DF0A0]" : "bg-[#FF6F00]/25 text-[#FFC27A]"
+                      }`}
+                    >
+                      Totaal actief: {formatPct(activeTotal)}
+                    </span>
+                    {!totalIs100 && activeTotal > 0 && (
+                      <button type="button" onClick={normalize} className="rounded-full bg-white/10 px-3 py-1 font-body text-sm font-black text-white hover:bg-white/20">
+                        Maak 100%
+                      </button>
+                    )}
+                    <button type="button" onClick={equalize} className="rounded-full bg-white/10 px-3 py-1 font-body text-sm font-black text-white hover:bg-white/20">
+                      Gelijk verdelen
+                    </button>
                   </div>
                 </div>
-                <button type="button" onClick={onClose} className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-xl text-white hover:bg-white/20" aria-label="Sluiten">
-                  ✕
-                </button>
-              </header>
+                {!totalIs100 && activeTotal > 0 && (
+                  <p className="mb-3 font-body text-xs font-bold text-white/60">
+                    Het totaal hoeft niet precies 100% te zijn: de kansen worden naar verhouding omgerekend (zie "Werkelijke kans").
+                  </p>
+                )}
 
-              <div className="flex-1 space-y-6 px-4 py-5 sm:px-6">
-                <section>
-                  <h3 className="mb-3 font-display text-xl text-white">Algemeen</h3>
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    <label className="sm:col-span-2">
-                      <span className={labelClass}>Ondertitel</span>
-                      <input className={inputClass} value={draft.subtitle} onChange={(e) => update({ subtitle: e.target.value })} />
-                    </label>
-                    <label>
-                      <span className={labelClass}>Draaiduur (seconden)</span>
-                      <input
-                        type="number"
-                        min={1}
-                        max={30}
-                        step={0.5}
-                        className={inputClass}
-                        value={draft.spinDuration / 1000}
-                        onChange={(e) => update({ spinDuration: Math.round((Number(e.target.value) || 0) * 1000) })}
+                <ul className="space-y-3">
+                  <AnimatePresence initial={false}>
+                    {draft.items.map((item, index) => (
+                      <ItemEditor
+                        key={item.id}
+                        item={item}
+                        index={index}
+                        count={draft.items.length}
+                        chance={chanceOf(item)}
+                        onChange={(patch) => updateItem(index, patch)}
+                        onMove={(dir) => moveItem(index, dir)}
+                        onRemove={() => removeItem(index)}
                       />
-                    </label>
-                    <label>
-                      <span className={labelClass}>Grootte van de vakken</span>
-                      <select
-                        className={inputClass}
-                        value={draft.segmentSizing}
-                        onChange={(e) => update({ segmentSizing: e.target.value as RouletteConfig["segmentSizing"] })}
-                      >
-                        <option value="equal">Allemaal even groot</option>
-                        <option value="weighted">Naar verhouding van de kans</option>
-                      </select>
-                    </label>
-                  </div>
-                  <div className="mt-4 flex flex-wrap gap-x-6 gap-y-3">
-                    <Toggle checked={draft.showPrizeList} onChange={(v) => update({ showPrizeList: v })} label="Prijzenlijst tonen" />
-                    <Toggle checked={draft.showProbabilities} onChange={(v) => update({ showProbabilities: v })} label="Percentages tonen" />
-                    <Toggle checked={draft.confetti} onChange={(v) => update({ confetti: v })} label="Confetti" />
-                    <Toggle checked={draft.sound.enabled} onChange={(v) => update({ sound: { ...draft.sound, enabled: v } })} label="Geluid" />
-                  </div>
-                </section>
+                    ))}
+                  </AnimatePresence>
+                </ul>
 
+                <button
+                  type="button"
+                  onClick={addItem}
+                  className="mt-3 w-full rounded-2xl border-2 border-dashed border-white/25 py-3 font-display text-lg text-white/80 hover:border-mm-yellow hover:text-mm-yellow"
+                >
+                  + Item toevoegen
+                </button>
+              </section>
+
+              {importOpen && (
                 <section>
-                  <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-                    <h3 className="font-display text-xl text-white">Items op het rad</h3>
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span
-                        className={`rounded-full px-3 py-1 font-body text-sm font-black tabular-nums ${
-                          totalIs100 ? "bg-mm-green/25 text-[#7DF0A0]" : "bg-[#FF6F00]/25 text-[#FFC27A]"
-                        }`}
-                      >
-                        Totaal actief: {formatPct(activeTotal)}
-                      </span>
-                      {!totalIs100 && activeTotal > 0 && (
-                        <button type="button" onClick={normalize} className="rounded-full bg-white/10 px-3 py-1 font-body text-sm font-black text-white hover:bg-white/20">
-                          Maak 100%
-                        </button>
-                      )}
-                      <button type="button" onClick={equalize} className="rounded-full bg-white/10 px-3 py-1 font-body text-sm font-black text-white hover:bg-white/20">
-                        Gelijk verdelen
-                      </button>
-                    </div>
-                  </div>
-                  {!totalIs100 && activeTotal > 0 && (
-                    <p className="mb-3 font-body text-xs font-bold text-white/60">
-                      Het totaal hoeft niet precies 100% te zijn: de kansen worden naar verhouding omgerekend (zie "Werkelijke kans").
+                  <h3 className="mb-2 font-display text-xl text-white">Config-code importeren</h3>
+                  <p className="mb-2 font-body text-xs font-bold text-white/60">
+                    Plak hier een config-code die je eerder hebt gekopieerd (bijvoorbeeld een kerst-template). Na het laden kun je alles
+                    nog controleren voordat je op Toepassen klikt.
+                  </p>
+                  <textarea
+                    ref={importRef}
+                    value={importText}
+                    onChange={(e) => {
+                      setImportText(e.target.value);
+                      setImportMessage(null);
+                    }}
+                    placeholder="export const rouletteConfig: RouletteConfig = { … }"
+                    spellCheck={false}
+                    className="h-48 w-full rounded-xl border-2 border-white/15 bg-black/50 p-3 font-mono text-xs text-white/90 outline-none placeholder:text-white/30 focus:border-mm-yellow"
+                  />
+                  {importMessage && (
+                    <p className={`mt-2 font-body text-sm font-bold ${importMessage.ok ? "text-[#7DF0A0]" : "text-[#FF8A8A]"}`}>
+                      {importMessage.ok ? "✓ " : ""}
+                      {importMessage.text}
                     </p>
                   )}
-
-                  <ul className="space-y-3">
-                    <AnimatePresence initial={false}>
-                      {draft.items.map((item, index) => (
-                        <ItemEditor
-                          key={item.id}
-                          item={item}
-                          index={index}
-                          count={draft.items.length}
-                          chance={chanceOf(item)}
-                          onChange={(patch) => updateItem(index, patch)}
-                          onMove={(dir) => moveItem(index, dir)}
-                          onRemove={() => removeItem(index)}
-                        />
-                      ))}
-                    </AnimatePresence>
-                  </ul>
-
-                  <button
-                    type="button"
-                    onClick={addItem}
-                    className="mt-3 w-full rounded-2xl border-2 border-dashed border-white/25 py-3 font-display text-lg text-white/80 hover:border-mm-yellow hover:text-mm-yellow"
-                  >
-                    + Item toevoegen
-                  </button>
-                </section>
-
-                {code !== null && (
-                  <section>
-                    <h3 className="mb-2 font-display text-xl text-white">Config-code {copied && <span className="font-body text-sm font-black text-[#7DF0A0]">✓ Gekopieerd</span>}</h3>
-                    <p className="mb-2 font-body text-xs font-bold text-white/60">
-                      {copied ? "De code staat op je klembord." : "Kopiëren lukte niet automatisch; selecteer de code hieronder en kopieer handmatig."}
-                    </p>
-                    <textarea
-                      readOnly
-                      value={code}
-                      onFocus={(e) => e.currentTarget.select()}
-                      className="h-48 w-full rounded-xl border-2 border-white/15 bg-black/50 p-3 font-mono text-xs text-white/90 outline-none focus:border-mm-yellow"
-                    />
-                  </section>
-                )}
-              </div>
-
-              <footer className="sticky bottom-0 border-t-2 border-white/10 bg-[#14070A]/95 px-4 py-3 backdrop-blur sm:px-6" style={{ paddingBottom: "max(0.75rem, env(safe-area-inset-bottom, 0px))" }}>
-                {error && <p className="mb-2 font-body text-sm font-bold text-[#FF8A8A]">{error}</p>}
-                <div className="flex flex-wrap items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setDraft(toPercentDraft(defaultConfig))}
-                    className="rounded-full bg-white/10 px-4 py-2 font-body text-sm font-black text-white hover:bg-white/20"
-                  >
-                    Standaard herstellen
-                  </button>
-                  <button type="button" onClick={exportCode} className="rounded-full bg-white/10 px-4 py-2 font-body text-sm font-black text-white hover:bg-white/20">
-                    Kopieer config-code
-                  </button>
-                  <button
-                    type="button"
-                    onClick={onPreviewJackpot}
-                    className="rounded-full bg-gradient-to-b from-[#FFE57A] to-[#F5A300] px-4 py-2 font-body text-sm font-black text-[#5A1A00] hover:brightness-110"
-                  >
-                    🏆 Viering testen
-                  </button>
-                  <div className="ml-auto flex gap-2">
-                    <button type="button" onClick={onClose} className="rounded-full bg-white/10 px-5 py-2 font-display text-lg text-white hover:bg-white/20">
-                      Annuleren
+                  <div className="mt-2 flex gap-2">
+                    <button
+                      type="button"
+                      onClick={loadImport}
+                      disabled={!importText.trim()}
+                      className="rounded-full bg-mm-yellow px-5 py-2 font-body text-sm font-black text-mm-ink hover:brightness-110 disabled:opacity-40"
+                    >
+                      Laden
                     </button>
                     <button
                       type="button"
-                      onClick={apply}
-                      className="rounded-full bg-mm-red px-6 py-2 font-display text-lg text-white shadow-[inset_0_-4px_0_rgba(0,0,0,0.3)] hover:brightness-110"
+                      onClick={() => setImportOpen(false)}
+                      className="rounded-full bg-white/10 px-4 py-2 font-body text-sm font-black text-white hover:bg-white/20"
                     >
-                      Toepassen
+                      Sluiten
                     </button>
                   </div>
+                </section>
+              )}
+
+              {code !== null && (
+                <section>
+                  <h3 className="mb-2 font-display text-xl text-white">Config-code {copied && <span className="font-body text-sm font-black text-[#7DF0A0]">✓ Gekopieerd</span>}</h3>
+                  <p className="mb-2 font-body text-xs font-bold text-white/60">
+                    {copied ? "De code staat op je klembord." : "Kopiëren lukte niet automatisch; selecteer de code hieronder en kopieer handmatig."}
+                  </p>
+                  <textarea
+                    readOnly
+                    value={code}
+                    onFocus={(e) => e.currentTarget.select()}
+                    className="h-48 w-full rounded-xl border-2 border-white/15 bg-black/50 p-3 font-mono text-xs text-white/90 outline-none focus:border-mm-yellow"
+                  />
+                </section>
+              )}
+            </div>
+
+            <footer className="sticky bottom-0 border-t-2 border-white/10 bg-[#14070A]/95 px-4 py-3 backdrop-blur sm:px-6" style={{ paddingBottom: "max(0.75rem, env(safe-area-inset-bottom, 0px))" }}>
+              {error && <p className="mb-2 font-body text-sm font-bold text-[#FF8A8A]">{error}</p>}
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setDraft(toPercentDraft(defaultConfig))}
+                  className="rounded-full bg-white/10 px-4 py-2 font-body text-sm font-black text-white hover:bg-white/20"
+                >
+                  Standaard herstellen
+                </button>
+                <button type="button" onClick={exportCode} className="rounded-full bg-white/10 px-4 py-2 font-body text-sm font-black text-white hover:bg-white/20">
+                  Kopieer config-code
+                </button>
+                <button type="button" onClick={openImport} className="rounded-full bg-white/10 px-4 py-2 font-body text-sm font-black text-white hover:bg-white/20">
+                  Importeer config-code
+                </button>
+                <button
+                  type="button"
+                  onClick={onPreviewJackpot}
+                  className="rounded-full bg-gradient-to-b from-[#FFE57A] to-[#F5A300] px-4 py-2 font-body text-sm font-black text-[#5A1A00] hover:brightness-110"
+                >
+                  🏆 Viering testen
+                </button>
+                <div className="ml-auto flex gap-2">
+                  <button type="button" onClick={onClose} className="rounded-full bg-white/10 px-5 py-2 font-display text-lg text-white hover:bg-white/20">
+                    Annuleren
+                  </button>
+                  <button
+                    type="button"
+                    onClick={apply}
+                    className="rounded-full bg-mm-red px-6 py-2 font-display text-lg text-white shadow-[inset_0_-4px_0_rgba(0,0,0,0.3)] hover:brightness-110"
+                  >
+                    Toepassen
+                  </button>
                 </div>
-              </footer>
-            </motion.div>
-          )}
+              </div>
+            </footer>
+          </motion.div>
         </motion.div>
       )}
     </AnimatePresence>

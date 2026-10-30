@@ -136,7 +136,10 @@ export function Wheel({ segments, rotation, pointerKick, spinning, winnerIndex }
         className={`absolute -inset-[6%] rounded-full blur-2xl transition-opacity duration-700 ${
           spinning ? "opacity-90" : "opacity-60"
         }`}
-        style={{ background: "radial-gradient(circle, rgba(255,200,30,0.65) 0%, rgba(227,6,19,0.35) 45%, transparent 70%)" }}
+        style={{
+          background:
+            "radial-gradient(circle, color-mix(in srgb, var(--glow) 65%, transparent) 0%, color-mix(in srgb, var(--btn-2) 35%, transparent) 45%, transparent 70%)",
+        }}
         aria-hidden
       />
 

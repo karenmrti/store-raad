@@ -3,8 +3,19 @@
 @tailwind utilities;
 
 @layer base {
+  /* Theme colors; App.tsx overwrites these from the active theme (src/config/themes.ts). */
+  :root {
+    --bg-1: #e30613;
+    --bg-2: #9e0410;
+    --bg-3: #3d0207;
+    --btn-1: #ff3b47;
+    --btn-2: #e30613;
+    --btn-3: #a5040e;
+    --glow: #ffc81e;
+    --btn-text: #ffffff;
+  }
   html {
-    background: #3d0207;
+    background: var(--bg-3);
     -webkit-tap-highlight-color: transparent;
   }
   body {
@@ -42,6 +53,23 @@
   to { transform: translateX(170vw); }
 }
 
+/* ---------- Theme particles (snow, %, pumpkins …) ---------- */
+.particle {
+  position: absolute;
+  top: 0;
+  color: rgba(255, 255, 255, 0.85);
+  font-family: "Lilita One", "Arial Black", sans-serif;
+  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+  opacity: 0.75;
+  will-change: transform;
+  animation: particle-fall linear infinite;
+}
+@keyframes particle-fall {
+  from { transform: translate3d(0, -10vh, 0) rotate(0deg); }
+  50% { transform: translate3d(3vw, 50vh, 0) rotate(180deg); }
+  to { transform: translate3d(-1vw, 110vh, 0) rotate(360deg); }
+}
+
 /* ---------- Logo ---------- */
 .logo-float {
   animation: logo-float 4.5s ease-in-out infinite;
@@ -65,24 +93,26 @@
 
 /* ---------- Spin button ---------- */
 .spin-button {
-  background: linear-gradient(180deg, #ff3b47 0%, #e30613 45%, #a5040e 100%);
+  --btn-edge: color-mix(in srgb, var(--btn-3) 70%, #000);
+  background: linear-gradient(180deg, var(--btn-1) 0%, var(--btn-2) 45%, var(--btn-3) 100%);
   border: 5px solid #fff;
+  text-shadow: 0 2px 0 rgba(0, 0, 0, 0.25);
   box-shadow:
-    0 8px 0 #6e020a,
+    0 8px 0 var(--btn-edge),
     0 14px 28px rgba(0, 0, 0, 0.55),
-    0 0 40px rgba(255, 200, 30, 0.45),
+    0 0 40px color-mix(in srgb, var(--glow) 45%, transparent),
     inset 0 -6px 0 rgba(0, 0, 0, 0.2);
 }
 .spin-button:not(:disabled):hover {
   box-shadow:
-    0 8px 0 #6e020a,
+    0 8px 0 var(--btn-edge),
     0 16px 32px rgba(0, 0, 0, 0.55),
-    0 0 60px rgba(255, 200, 30, 0.8),
+    0 0 60px color-mix(in srgb, var(--glow) 80%, transparent),
     inset 0 -6px 0 rgba(0, 0, 0, 0.2);
 }
 .spin-button:not(:disabled):active {
   box-shadow:
-    0 2px 0 #6e020a,
+    0 2px 0 var(--btn-edge),
     0 6px 14px rgba(0, 0, 0, 0.55),
     inset 0 -4px 0 rgba(0, 0, 0, 0.2);
 }
@@ -153,5 +183,6 @@
   .winner-rays {
     animation: none !important;
   }
-  .speed-line { display: none; }
+  .speed-line,
+  .particle { display: none; }
 }
