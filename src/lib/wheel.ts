@@ -65,13 +65,22 @@ export function segmentAtPointer(segments: Segment[], rotation: number): Segment
 }
 
 /**
- * Computes the final rotation that lands the pointer inside `target`, at a random spot that
- * keeps clear of the segment edges so the result is never visually ambiguous.
+ * Computes the final rotation that lands the pointer inside `target`. Normally it lands at a random
+ * spot clear of the segment edges; with `nearMiss` it lands just inside one of the two edges, so
+ * the wheel either barely crawls into the winner or barely stops before the next segment.
  */
-export function computeTargetRotation(current: number, target: Segment, minFullRotations: number): number {
+export function computeTargetRotation(current: number, target: Segment, minFullRotations: number, nearMiss = false): number {
   const span = target.end - target.start;
-  const margin = Math.min(span * 0.2, 6);
-  const landingAngle = target.start + margin + random() * (span - margin * 2);
+  let landingAngle: number;
+  if (nearMiss && span > 8) {
+    // 1.5°–3.5° inside the edge: clearly on the winner, but only just.
+    const inset = 1.5 + random() * 2;
+    // The pointer enters a segment at its `end` edge and leaves at its `start` edge.
+    landingAngle = random() < 0.5 ? target.end - inset : target.start + inset;
+  } else {
+    const margin = Math.min(span * 0.2, 6);
+    landingAngle = target.start + margin + random() * (span - margin * 2);
+  }
   const delta = mod360(-landingAngle - current);
   return current + minFullRotations * 360 + delta;
 }

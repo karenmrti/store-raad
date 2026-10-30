@@ -76,6 +76,45 @@ export function playSpinStart(volume: number) {
   osc.stop(t + 1);
 }
 
+/** Short burst of filtered noise, used for the drum roll and the cymbal crash. */
+function noise(ac: AudioContext, start: number, duration: number, gain: number, freq: number) {
+  const buffer = ac.createBuffer(1, Math.ceil(ac.sampleRate * duration), ac.sampleRate);
+  const data = buffer.getChannelData(0);
+  for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
+  const src = ac.createBufferSource();
+  const filter = ac.createBiquadFilter();
+  const env = ac.createGain();
+  src.buffer = buffer;
+  filter.type = "bandpass";
+  filter.frequency.value = freq;
+  env.gain.setValueAtTime(gain, start);
+  env.gain.exponentialRampToValueAtTime(0.0001, start + duration);
+  src.connect(filter).connect(env).connect(master!);
+  src.start(start);
+}
+
+/** Big jackpot fanfare: drum roll, cymbal crash, rising brass arpeggios and sparkles. */
+export function playJackpot(volume: number) {
+  const ac = getContext(volume);
+  if (!ac) return;
+  const t = ac.currentTime + 0.02;
+  for (let i = 0; i < 14; i++) noise(ac, t + i * 0.045, 0.06, 0.12 + i * 0.012, 180);
+  const hit = t + 0.65;
+  noise(ac, hit, 1.6, 0.3, 6000);
+  const melody: [number, number, number][] = [
+    [523.25, 0, 0.12], [659.25, 0.12, 0.12], [783.99, 0.24, 0.12], [1046.5, 0.36, 0.3],
+    [987.77, 0.7, 0.12], [1046.5, 0.82, 0.12], [1174.66, 0.94, 0.12], [1318.51, 1.06, 0.9],
+  ];
+  for (const [freq, offset, duration] of melody) {
+    tone(ac, { freq, start: hit + offset, duration, type: "triangle", gain: 0.3 });
+    tone(ac, { freq: freq / 2, start: hit + offset, duration, type: "sawtooth", gain: 0.06 });
+    tone(ac, { freq: freq * 1.5, start: hit + offset, duration, type: "sine", gain: 0.05 });
+  }
+  for (let i = 0; i < 10; i++) {
+    tone(ac, { freq: 2000 + Math.random() * 2500, start: hit + 1.1 + i * 0.09, duration: 0.18, type: "sine", gain: 0.06 });
+  }
+}
+
 /** Victory fanfare. */
 export function playWin(volume: number) {
   const ac = getContext(volume);

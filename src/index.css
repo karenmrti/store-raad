@@ -102,12 +102,54 @@
 }
 .winner-rays { transform: translate(-50%, -50%); }
 
+/* ---------- Mascot: white outline that follows the head's shape, plus a soft glow ---------- */
+.mascot-glow {
+  filter: drop-shadow(0 0 1.5px #fff) drop-shadow(0 0 1.5px #fff) drop-shadow(0 0 1px #fff)
+    drop-shadow(0 0 10px rgba(255, 255, 255, 0.55));
+}
+
+/* ---------- Jackpot ---------- */
+.jackpot-rays {
+  background: repeating-conic-gradient(from 0deg, rgba(255, 255, 255, 0.35) 0deg 8deg, transparent 8deg 16deg);
+  mask-image: radial-gradient(circle, #000 0%, transparent 45%);
+  -webkit-mask-image: radial-gradient(circle, #000 0%, transparent 45%);
+  transform: translate(-50%, -50%);
+  animation: jackpot-rays 10s linear infinite;
+}
+@keyframes jackpot-rays {
+  to { transform: translate(-50%, -50%) rotate(360deg); }
+}
+.jackpot-text {
+  background: linear-gradient(180deg, #fffbe0 0%, #ffd84d 40%, #f5a300 60%, #fff1a8 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  -webkit-text-stroke: 3px #7a2a00;
+  filter: drop-shadow(0 6px 0 #9e0410) drop-shadow(0 14px 24px rgba(0, 0, 0, 0.5));
+  animation: jackpot-glow 0.9s ease-in-out infinite alternate;
+}
+@keyframes jackpot-glow {
+  from { filter: drop-shadow(0 6px 0 #9e0410) drop-shadow(0 0 10px rgba(255, 220, 80, 0.6)); }
+  to { filter: drop-shadow(0 6px 0 #9e0410) drop-shadow(0 0 40px rgba(255, 240, 160, 1)); }
+}
+.jackpot-card {
+  border-color: #ffd84d;
+  box-shadow: 0 0 0 4px #b87900, 0 0 60px rgba(255, 200, 30, 0.75), 0 30px 80px rgba(0, 0, 0, 0.7);
+  animation: jackpot-card-glow 1.4s ease-in-out infinite alternate;
+}
+@keyframes jackpot-card-glow {
+  to { box-shadow: 0 0 0 4px #b87900, 0 0 100px rgba(255, 220, 80, 1), 0 30px 80px rgba(0, 0, 0, 0.7); }
+}
+
 /* ---------- Reduced motion ---------- */
 @media (prefers-reduced-motion: reduce) {
   .bg-checker,
   .speed-line,
   .logo-float,
   .bulb,
+  .jackpot-rays,
+  .jackpot-text,
+  .jackpot-card,
   .winner-rays {
     animation: none !important;
   }

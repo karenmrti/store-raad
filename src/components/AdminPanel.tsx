@@ -11,6 +11,7 @@ interface AdminPanelProps {
   onUnlock: () => void;
   onApply: (config: RouletteConfig) => void;
   onClose: () => void;
+  onPreviewJackpot: () => void;
 }
 
 const NEW_ITEM_COLORS = ["#E30613", "#0A7CFF", "#FFC81E", "#1FB24A", "#1C1C24", "#8E24AA", "#FF6F00"];
@@ -242,13 +243,24 @@ function ItemEditor({
         <span className="font-body text-xs font-bold text-white/60">
           {item.enabled && item.weight > 0 ? <>Werkelijke kans: <span className="text-mm-yellow">{formatPct(chance)}</span></> : "Wordt nooit gekozen"}
         </span>
+        <Toggle checked={!!item.jackpot} onChange={(jackpot) => onChange({ jackpot })} label="Jackpot" />
         <Toggle checked={item.enabled} onChange={(enabled) => onChange({ enabled })} label="Actief" />
       </div>
     </motion.li>
   );
 }
 
-export function AdminPanel({ open, config, defaultConfig, isModified, unlocked, onUnlock, onApply, onClose }: AdminPanelProps) {
+export function AdminPanel({
+  open,
+  config,
+  defaultConfig,
+  isModified,
+  unlocked,
+  onUnlock,
+  onApply,
+  onClose,
+  onPreviewJackpot,
+}: AdminPanelProps) {
   const [draft, setDraft] = useState<RouletteConfig>(() => toPercentDraft(config));
   const [error, setError] = useState<string | null>(null);
   const [code, setCode] = useState<string | null>(null);
@@ -391,13 +403,6 @@ export function AdminPanel({ open, config, defaultConfig, isModified, unlocked, 
               </header>
 
               <div className="flex-1 space-y-6 px-4 py-5 sm:px-6">
-                <p className="rounded-2xl border-2 border-mm-yellow/40 bg-mm-yellow/10 px-4 py-3 font-body text-sm font-bold text-white/90">
-                  Wijzigingen gelden alleen in dit browsertabblad en verdwijnen na verversen. Wil je ze voor iedereen
-                  vastleggen? Klik op <span className="text-mm-yellow">Kopieer config-code</span> en plak de code in{" "}
-                  <code className="text-mm-yellow">src/config/rouletteConfig.ts</code> (vervang alles vanaf{" "}
-                  <code className="text-mm-yellow">export const rouletteConfig</code>).
-                </p>
-
                 <section>
                   <h3 className="mb-3 font-display text-xl text-white">Algemeen</h3>
                   <div className="grid gap-3 sm:grid-cols-2">
@@ -518,6 +523,13 @@ export function AdminPanel({ open, config, defaultConfig, isModified, unlocked, 
                   </button>
                   <button type="button" onClick={exportCode} className="rounded-full bg-white/10 px-4 py-2 font-body text-sm font-black text-white hover:bg-white/20">
                     Kopieer config-code
+                  </button>
+                  <button
+                    type="button"
+                    onClick={onPreviewJackpot}
+                    className="rounded-full bg-gradient-to-b from-[#FFE57A] to-[#F5A300] px-4 py-2 font-body text-sm font-black text-[#5A1A00] hover:brightness-110"
+                  >
+                    🏆 Viering testen
                   </button>
                   <div className="ml-auto flex gap-2">
                     <button type="button" onClick={onClose} className="rounded-full bg-white/10 px-5 py-2 font-display text-lg text-white hover:bg-white/20">

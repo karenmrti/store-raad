@@ -26,6 +26,8 @@
  *  image        (optional) An image file placed in the `public/items/` folder,
  *               written as "items/your-file.png". Use null for none.
  *               If both icon and image are set, the image is used.
+ *  jackpot      (optional) true = winning this item triggers the extra-big jackpot
+ *               celebration.
  * ============================================================================= */
 
 export interface RouletteItem {
@@ -39,6 +41,7 @@ export interface RouletteItem {
   enabled: boolean;
   icon?: string | null;
   image?: string | null;
+  jackpot?: boolean;
 }
 
 export interface RouletteConfig {
@@ -54,17 +57,28 @@ export interface RouletteConfig {
     keyboardHint: string;
     prizes: string;
     winner: string;
+    jackpot: string;
     reward: string;
     spinAgain: string;
     close: string;
     soundOn: string;
     soundOff: string;
+    fullscreenOn: string;
+    fullscreenOff: string;
     noItems: string;
   };
   /** How long one spin lasts, in milliseconds (8000 = 8 seconds). */
   spinDuration: number;
   /** Minimum number of full turns per spin (more = faster-looking spin). */
   minFullRotations: number;
+  /**
+   * Chance (0–1) of a "bijna!" moment: the wheel stops just barely over the edge of the winning
+   * segment, or just before the next one. 0.3 = about 1 in 3 spins; 0 = never.
+   * Only changes where inside the winning segment it stops, never which prize wins.
+   */
+  nearMissChance: number;
+  /** Zoom in slightly on the wheel while it spins. */
+  zoomOnSpin: boolean;
   /**
    * "equal"    → every segment has the same size (weights stay hidden; classic game show).
    * "weighted" → segment size matches its winning chance.
@@ -94,6 +108,13 @@ export interface RouletteConfig {
    * or adding #admin to the URL. Changes made there only apply in that browser tab until the
    * page is refreshed; use "Kopieer config-code" in the admin to make them permanent here.
    */
+  /** Mascot head with a white glow + credit in the bottom-left corner. */
+  mascot: {
+    enabled: boolean;
+    /** Cut-out image (transparent background) in the `public/` folder. */
+    image: string;
+    credit: string;
+  };
   admin: {
     enabled: boolean;
     /** PIN asked before opening the admin. Empty string = no PIN. Note: visible in the site's code. */
@@ -113,16 +134,21 @@ export const rouletteConfig: RouletteConfig = {
     keyboardHint: "of druk op de spatiebalk",
     prizes: "Prijzen",
     winner: "Winnaar!",
+    jackpot: "JACKPOT!",
     reward: "Beloning",
     spinAgain: "Nog een keer",
     close: "Sluiten",
     soundOn: "Geluid aanzetten",
     soundOff: "Geluid uitzetten",
+    fullscreenOn: "Volledig scherm",
+    fullscreenOff: "Volledig scherm verlaten",
     noItems: "Er zijn geen prijzen actief. Zet in src/config/rouletteConfig.ts bij minstens één item enabled: true en een weight hoger dan 0.",
   },
 
   spinDuration: 8000,
   minFullRotations: 7,
+  nearMissChance: 0.3,
+  zoomOnSpin: true,
   segmentSizing: "equal",
   showPrizeList: true,
   showProbabilities: true,
@@ -134,6 +160,12 @@ export const rouletteConfig: RouletteConfig = {
     spinStart: true,
     ticks: true,
     win: true,
+  },
+
+  mascot: {
+    enabled: true,
+    image: "mascot-head.webp",
+    credit: "made by Karen <3",
   },
 
   admin: {
@@ -202,6 +234,7 @@ export const rouletteConfig: RouletteConfig = {
       enabled: true,
       icon: "🏆",
       image: null,
+      jackpot: true,
     },
     {
       id: "bonus-lap",

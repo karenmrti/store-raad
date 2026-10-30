@@ -3,6 +3,18 @@ import { AnimatePresence, motion } from "framer-motion";
 import type { RouletteConfig, RouletteItem } from "../config/rouletteConfig";
 import { assetUrl, readableTextColor } from "../lib/wheel";
 
+/**
+ * Font size for the prize name so its longest word always fits the badge: up to 3rem, scaled down
+ * by word length and by the space left in the pop-up (screen width minus paddings and icon).
+ */
+function nameFontSize(item: RouletteItem) {
+  const longestWord = Math.max(...item.name.split(/\s+/).map((w) => w.length));
+  // Long multi-word names wrap onto at most ~3 lines instead of becoming a tall block.
+  const charsPerLine = Math.max(3, longestWord, Math.ceil(item.name.length / 3));
+  const reserved = item.image || item.icon ? "12.5rem" : "8.5rem";
+  return `min(3rem, calc((min(100vw, 28rem) - ${reserved}) / ${(charsPerLine * 0.68).toFixed(2)}))`;
+}
+
 interface WinnerModalProps {
   winner: RouletteItem | null;
   texts: RouletteConfig["texts"];
@@ -35,7 +47,11 @@ export function WinnerModal({ winner, texts, onClose, onSpinAgain }: WinnerModal
           aria-labelledby="winner-title"
         >
           <motion.div
-            className="relative w-full max-w-md overflow-hidden rounded-[2rem] border-4 border-white bg-gradient-to-b from-[#2A0A0E] to-[#14070A] px-6 pb-7 pt-14 text-center shadow-[0_30px_80px_rgba(0,0,0,0.7)] sm:px-8"
+            className={`relative w-full max-w-md overflow-hidden rounded-[2rem] border-4 bg-gradient-to-b px-6 pb-7 pt-14 text-center sm:px-8 ${
+              winner.jackpot
+                ? "jackpot-card from-[#4A2A00] via-[#2A0A0E] to-[#14070A]"
+                : "border-white from-[#2A0A0E] to-[#14070A] shadow-[0_30px_80px_rgba(0,0,0,0.7)]"
+            }`}
             initial={{ scale: 0.4, y: 80, rotate: -6 }}
             animate={{ scale: 1, y: 0, rotate: 0 }}
             exit={{ scale: 0.7, y: 40, opacity: 0 }}
@@ -48,23 +64,35 @@ export function WinnerModal({ winner, texts, onClose, onSpinAgain }: WinnerModal
               aria-hidden
             />
 
-            <motion.div
-              className="relative mx-auto mb-2 text-7xl drop-shadow-[0_8px_10px_rgba(0,0,0,0.5)]"
-              initial={{ scale: 0, rotate: -30 }}
-              animate={{ scale: 1, rotate: 0 }}
-              transition={{ delay: 0.15, type: "spring", stiffness: 300, damping: 12 }}
-              aria-hidden
-            >
-              🏆
-            </motion.div>
+            <div className="relative mx-auto mb-2 flex items-end justify-center gap-2" aria-hidden>
+              {(winner.jackpot ? ["text-5xl", "text-8xl", "text-5xl"] : ["text-7xl"]).map((size, i) => (
+                <motion.span
+                  key={i}
+                  className={`${size} drop-shadow-[0_8px_10px_rgba(0,0,0,0.5)]`}
+                  initial={{ scale: 0, rotate: -30 }}
+                  animate={winner.jackpot ? { scale: 1, rotate: 0, y: [0, -8, 0] } : { scale: 1, rotate: 0 }}
+                  transition={{
+                    delay: 0.15 + i * 0.1,
+                    type: "spring",
+                    stiffness: 300,
+                    damping: 12,
+                    y: { duration: 1.1, repeat: Infinity, ease: "easeInOut", delay: i * 0.2 },
+                  }}
+                >
+                  🏆
+                </motion.span>
+              ))}
+            </div>
 
             <motion.p
-              className="relative font-display text-2xl uppercase tracking-[0.2em] text-mm-yellow"
+              className={`relative font-display uppercase ${
+                winner.jackpot ? "jackpot-text text-4xl tracking-[0.1em] sm:text-5xl" : "text-2xl tracking-[0.2em] text-mm-yellow"
+              }`}
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.25 }}
             >
-              {texts.winner}
+              {winner.jackpot ? texts.jackpot : texts.winner}
             </motion.p>
 
             <motion.div
@@ -75,11 +103,15 @@ export function WinnerModal({ winner, texts, onClose, onSpinAgain }: WinnerModal
               transition={{ delay: 0.35, duration: 0.55, times: [0, 0.7, 1] }}
             >
               {winner.image ? (
-                <img src={assetUrl(winner.image)} alt="" className="h-12 w-12 rounded-full border-2 border-white object-cover" />
+                <img src={assetUrl(winner.image)} alt="" className="h-12 w-12 shrink-0 rounded-full border-2 border-white object-cover" />
               ) : (
-                winner.icon && <span className="text-4xl" aria-hidden>{winner.icon}</span>
+                winner.icon && <span className="shrink-0 text-4xl" aria-hidden>{winner.icon}</span>
               )}
-              <h2 id="winner-title" className="break-words font-display text-4xl leading-none sm:text-5xl">
+              <h2
+                id="winner-title"
+                className="min-w-0 font-display leading-none [overflow-wrap:anywhere] [text-wrap:balance]"
+                style={{ fontSize: nameFontSize(winner) }}
+              >
                 {winner.name}
               </h2>
             </motion.div>

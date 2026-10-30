@@ -44,7 +44,8 @@ export function useRouletteSpin({ segments, config, soundOn, reducedMotion, onRe
 
     const chosen = pickWeighted(segments);
     const from = rotation.get();
-    const to = computeTargetRotation(from, chosen, reducedMotion ? 2 : config.minFullRotations);
+    const nearMiss = !reducedMotion && Math.random() < config.nearMissChance;
+    const to = computeTargetRotation(from, chosen, reducedMotion ? 2 : config.minFullRotations, nearMiss);
     const duration = (reducedMotion ? Math.min(config.spinDuration, 2500) : config.spinDuration) / 1000;
 
     let lastIndex = segmentAtPointer(segments, from).index;
