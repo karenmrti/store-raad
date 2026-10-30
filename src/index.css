@@ -1,0 +1,115 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    background: #3d0207;
+    -webkit-tap-highlight-color: transparent;
+  }
+  body {
+    @apply font-body text-white antialiased;
+    min-height: 100dvh;
+    overflow-x: hidden;
+  }
+}
+
+/* ---------- Checkered patterns ---------- */
+.bg-checker {
+  background-image: conic-gradient(#fff 25%, #000 0 50%, #fff 0 75%, #000 0);
+  background-size: 64px 64px;
+  transform: rotate(-12deg);
+  animation: checker-drift 40s linear infinite;
+}
+.bg-checker-strip {
+  background-image: conic-gradient(#fff 25%, #111 0 50%, #fff 0 75%, #111 0);
+  background-size: 20px 20px;
+}
+
+@keyframes checker-drift {
+  from { background-position: 0 0; }
+  to { background-position: 640px 0; }
+}
+
+/* ---------- Speed lines ---------- */
+.speed-line {
+  left: -35vw;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.35), transparent);
+  animation: speed-line linear infinite;
+}
+@keyframes speed-line {
+  from { transform: translateX(0); }
+  to { transform: translateX(170vw); }
+}
+
+/* ---------- Logo ---------- */
+.logo-float {
+  animation: logo-float 4.5s ease-in-out infinite;
+}
+@keyframes logo-float {
+  0%, 100% { translate: 0 0; }
+  50% { translate: 0 -6px; }
+}
+
+/* ---------- Wheel lights ---------- */
+.bulb {
+  animation: bulb-blink 1.2s steps(1, end) infinite;
+}
+.bulb-b { animation-delay: 0.6s; }
+.bulb-fast { animation-duration: 0.24s; }
+.bulb-fast.bulb-b { animation-delay: 0.12s; }
+@keyframes bulb-blink {
+  0% { opacity: 1; filter: drop-shadow(0 0 6px #ffd84d); }
+  50% { opacity: 0.35; filter: none; }
+}
+
+/* ---------- Spin button ---------- */
+.spin-button {
+  background: linear-gradient(180deg, #ff3b47 0%, #e30613 45%, #a5040e 100%);
+  border: 5px solid #fff;
+  box-shadow:
+    0 8px 0 #6e020a,
+    0 14px 28px rgba(0, 0, 0, 0.55),
+    0 0 40px rgba(255, 200, 30, 0.45),
+    inset 0 -6px 0 rgba(0, 0, 0, 0.2);
+}
+.spin-button:not(:disabled):hover {
+  box-shadow:
+    0 8px 0 #6e020a,
+    0 16px 32px rgba(0, 0, 0, 0.55),
+    0 0 60px rgba(255, 200, 30, 0.8),
+    inset 0 -6px 0 rgba(0, 0, 0, 0.2);
+}
+.spin-button:not(:disabled):active {
+  box-shadow:
+    0 2px 0 #6e020a,
+    0 6px 14px rgba(0, 0, 0, 0.55),
+    inset 0 -4px 0 rgba(0, 0, 0, 0.2);
+}
+.spin-button-shine {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.6), rgba(255, 255, 255, 0));
+}
+
+/* ---------- Winner pop-up rays ---------- */
+.winner-rays {
+  background: repeating-conic-gradient(from 0deg, rgba(255, 200, 30, 0.9) 0deg 10deg, transparent 10deg 20deg);
+  mask-image: radial-gradient(circle, #000 0%, transparent 60%);
+  -webkit-mask-image: radial-gradient(circle, #000 0%, transparent 60%);
+  animation: rays-spin 18s linear infinite;
+}
+@keyframes rays-spin {
+  to { transform: translate(-50%, -50%) rotate(360deg); }
+}
+.winner-rays { transform: translate(-50%, -50%); }
+
+/* ---------- Reduced motion ---------- */
+@media (prefers-reduced-motion: reduce) {
+  .bg-checker,
+  .speed-line,
+  .logo-float,
+  .bulb,
+  .winner-rays {
+    animation: none !important;
+  }
+  .speed-line { display: none; }
+}
